@@ -41,25 +41,15 @@ const CFG = loadConfig();
 // unpack the config values
 const {
   TZ,
-  CHEAP_CUTOFF_EURKWH,
-  BYD_SOC_MIN_DAY,
-  BYD_SOC_MIN_NIGHT,
-  EV_MIN_SURPLUS_W,
-  BATTERY_PENALTY,
-  SET_PLANS,
-  EV_TARGET_KWH,
-  EV_CHARGE_POWER_KW
-} = CFG;
-
-//const TZ = 'Europe/Berlin';
-//const BYD_SOC_MIN_DAY = 50;
-//const BYD_SOC_MIN_NIGHT = 30;
-//const EV_MIN_SURPLUS_W = 2000;      // 1-phase 3.6kW: 2kW start threshold is sensible
-//const CHEAP_CUTOFF_EURKWH = 0.16;   // €/kWh threshold below which the EV charges at night
-//const BATTERY_PENALTY = 0.05;       // €/kWh estimated roundtrip cost when battery must be used
-//const SET_PLANS = false;            // true => schedules are actually applied (production)
-//const EV_TARGET_KWH = 12;           // target energy for the EV
-//const EV_CHARGE_POWER_KW = 3.6;     // assumed charge power (kW) – adjust to your setup
+  CHEAP_CUTOFF_EURKWH,		// €/kWh threshold below which the EV charges at night
+  BYD_SOC_MIN_DAY,			// Min. SOC at day
+  BYD_SOC_MIN_NIGHT,		// Min. SOC at night
+  EV_MIN_SURPLUS_W,			// 1-phase 3.6kW: 2kW start threshold is sensible
+  BATTERY_PENALTY,			// €/kWh estimated roundtrip cost when battery must be used
+  SET_PLANS,				// true => schedules are actually applied (production)
+  EV_TARGET_KWH,			// target energy for the EV
+  EV_CHARGE_POWER_KW		// assumed charge power (kW) – adjust to your setup
+} = CFG;    
 
 // ==== STATE PATHS ====
 const ST = {
