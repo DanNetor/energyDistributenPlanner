@@ -1,0 +1,11 @@
+{
+    "TZ": "Europe/Berlin",
+    "CHEAP_CUTOFF_EURKWH": 0.20,
+    "BYD_SOC_MIN_DAY": 40,
+    "BYD_SOC_MIN_NIGHT": 10,
+    "EV_MIN_SURPLUS_W": 2000,
+    "BATTERY_PENALTY": 0.05,
+    "SET_PLANS": false,
+    "EV_TARGET_KWH": 30,
+    "EV_CHARGE_POWER_KW": 3.6
+}
