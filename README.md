@@ -8,7 +8,7 @@
 
 Dieses Projekt optimiert den Energieverbrauch eines Haushalts mit Photovoltaikanlage und Batteriespeicher anhand der variablen Börsenstrompreise. Ziel ist es, möglichst viele günstige (Nacht-)Stunden den Hauptverbrauchern – **elektrisches Fahrzeug (EV)** und **Wärmepumpe (WP)** – zuzuweisen und gleichzeitig die PV-Erzeugung und den Batteriestand zu berücksichtigen.
 
-- **Preisdaten**: via [aWATTar API](https://api.awattar.de/v1/marketdata) – EPEX-Spotpreise der nächsten 24 Stunden (kostenfrei, tägliche Aktualisierung gegen ~14 Uhr; vgl. Hinweise im LogicMachine-Forum).  
+- **Preisdaten**: via aWATTar API – EPEX-Spotpreise der nächsten 24 Stunden (kostenfrei, tägliche Aktualisierung gegen ~14 Uhr).  
 - **PV-Forecast**: über den **Plenticore-Adapter** (KOSTAL-Wechselrichter).  
 - **Ausführung**: JavaScript-Routine im ioBroker – **alle 60 Minuten** jeweils **10 Minuten nach voller Stunde**.  
 - **Persistenz/Visualisierung**: Speicherung in ioBroker-States → InfluxDB → Grafana (Tabellen/Logs).
@@ -38,8 +38,8 @@ Dieses Projekt optimiert den Energieverbrauch eines Haushalts mit Photovoltaikan
 
 ### 2.3 Datenquellen (Details)
 
-- **aWATTar Preisfeed** – stündliche Börsenpreise der kommenden 24 Stunden als JSON (Felder u. a. `start_timestamp`, `end_timestamp`, `marketprice` in **€/MWh**). Abfrage via **HTTP GET** auf `https://api.awattar.de/v1/marketdata`.  
-- **PV-Forecast (Plenticore)** – Adapter stellt u. a. `plenticore.0.forecast.dayX.power` bereit (z. B. `power_high` / `power`). Werte je Stunde werden in **Wh**/ **kWh** gemappt.  
+- **aWATTar Preisfeed** – stündliche Börsenpreise der kommenden 24 Stunden als JSON (Felder u. a. `start_timestamp`, `end_timestamp`, `marketprice` in **€/MWh**).  
+- **PV-Forecast (Plenticore)** – Adapter stellt u. a. `plenticore.0.forecast.dayX.power` bereit (z. B. `power_high` / `power`). Werte je Stunde werden in **Wh**/**kWh** gemappt.  
 - **evcc** – Herstellerunabhängiges Energiemanagement für EV-Laden; Schwerpunkte: PV-Überschuss, dynamische Tarife, smarte Modi; >100 Wallboxen/Fahrzeugmodelle unterstützt. Dient hier als Schnittstelle zur Wallbox.  
 - **Wärmepumpe via Modbus** – iDM-Geräte: Modus **Modbus TCP** aktivieren (Navigator „Gebäudeleittechnik“). Beim Lesen von Floats ggf. **Byte-Swap (word)** beachten. Integration derzeit **noch nicht umgesetzt**.
 
@@ -214,27 +214,45 @@ Der Energy-Distribution Planner kombiniert **dynamische Stromtarife**, **PV-Fore
 
 ---
 
-### Anhang A – Beispiel: EV-Plan in evcc schreiben
+## 7 Inbetriebnahme über `config.json`
 
-```js
-// Beispiel: 12 kWh Nachtladung bis 06:00 (4 Stunden)
-const evPlan = { value: 12, time: '2025-08-16T06:00:00.000Z', hours: 4 };
-setState('evcc.0.loadpoints.1.plan.energy', JSON.stringify(evPlan), true);
+1. **Dateien ablegen**  
+   Lege `energyDistributionPlanner.js` **und** `config.json` im **gleichen Verzeichnis** auf dem ioBroker-Host ab (Standard gemäß Skript):  
+   `/opt/iobroker/iobroker-data/scripts/Energy-Distribution_Planner/`  
+   > Falls dein Pfad abweicht, passe im Skript den Wert von `rootDir` im Abschnitt `// ==== IMPORTS & CONFIG ====` an.
 
-// TODO (prod):
-// setState('evcc.0.loadpoints.1.mode/set', 'fast', true);   // vor/nach dem Plan passend setzen
+2. **Konfigurationsdatei pflegen**  
+   Die `config.json` enthält alle **relevanten Schwellwerte und Parameter** (z. B. Tarifschwelle, SoC-Grenzen, EV-Ziel, Schreibmodus). Sie **muss im Filesystem lesbar** sein.  
+   Wenn keine `config.json` vorhanden ist, lädt das Skript ersatzweise `config.sample.json`.
+
+3. **Berechtigungen setzen**  
+   Stelle sicher, dass der ioBroker-Benutzer Lesezugriff hat (typisch `iobroker:iobroker`):
+   ```bash
+   sudo chown iobroker:iobroker /opt/iobroker/iobroker-data/scripts/Energy-Distribution_Planner/config.json
+   sudo chmod 644 /opt/iobroker/iobroker-data/scripts/Energy-Distribution_Planner/config.json
+   ```
+
+4. **Adapter/Skript neu laden**  
+   Speichere das Skript oder starte den Script-Adapter neu. Im Detail-Log sollte eine Meldung wie  
+   `📅 Scheduler geplant: Ausführung 10 Minuten nach jeder vollen Stunde.` erscheinen.
+
+**Beispiel `config.json`**  
+> Werte an deine Anlage anpassen; Preise in **€/kWh**, Leistungen in **W**/**kW**, Zeiten in der TZ `Europe/Berlin`.
+```json
+{
+  "TZ": "Europe/Berlin",
+  "CHEAP_CUTOFF_EURKWH": 0.16,
+  "BYD_SOC_MIN_DAY": 50,
+  "BYD_SOC_MIN_NIGHT": 30,
+  "EV_MIN_SURPLUS_W": 2000,
+  "BATTERY_PENALTY": 0.05,
+  "SET_PLANS": false,
+  "EV_TARGET_KWH": 12,
+  "EV_CHARGE_POWER_KW": 3.6
+}
 ```
 
-### Anhang B – Preisumrechnung €/MWh → €/kWh
-
-```js
-const eurPerKWh = marketprice_eur_per_mwh / 1000;
-```
-
-### Anhang C – ioBroker-Cron
-
-```js
-// Alle 60 Minuten, plus 10 Minuten Offset
-schedule('10 * * * *', plan24h);
-plan24h();
-```
+**Schnelltest nach dem Start**  
+- State `0_userdata.0.EnergyDistriPlanner.summaryText` wird gefüllt.  
+- `0_userdata.0.EnergyDistriPlanner.tableJsonLong` enthält 24×3 Zeilen (Preis/Forecast/Nachtflag).  
+- Detail-Log unter `0_userdata.0.EnergyDistriPlanner.details.*` zeigt u. a. „Billigste Nachtstunden…“ und „PV-Forecast: … sun-hours mapped.“

@@ -14,19 +14,52 @@
  *   - [ ] Verify state write permissions (setVal/setState targets exist).
  *   - [ ] Check summary text time suffix "(UTC)" vs. Europe/Berlin and adjust if needed.
  *   - [ ] Validate hour formatting for Grafana consumers (HH:mm:ss).
+ *   - [ ] Set up config.json (see config.sample.json)
  ******************************/
 
 // ==== IMPORTS & CONFIG ====
-const fetch = require('node-fetch'); // ioBroker script adapter: load node-fetch
-const TZ = 'Europe/Berlin';
-const BYD_SOC_MIN_DAY = 50;
-const BYD_SOC_MIN_NIGHT = 30;
-const EV_MIN_SURPLUS_W = 2000;      // 1-phase 3.6kW: 2kW start threshold is sensible
-const CHEAP_CUTOFF_EURKWH = 0.16;   // €/kWh threshold below which the EV charges at night
-const BATTERY_PENALTY = 0.05;       // €/kWh estimated roundtrip cost when battery must be used
-const SET_PLANS = false;            // true => schedules are actually applied (production)
-const EV_TARGET_KWH = 12;           // target energy for the EV
-const EV_CHARGE_POWER_KW = 3.6;     // assumed charge power (kW) – adjust to your setup
+const fetch = require('node-fetch');    // ioBroker script adapter: load node-fetch
+const fs = require('fs');               // used for loading the config
+
+//change to the final ioBroker-enviroment
+//make sure that you mirror the scripts to file system (Instance-Setting -> Mirror scripts to file path)
+const rootDir = '/opt/iobroker/iobroker-data/scripts/Energy-Distribution_Planner'
+
+//load the config
+function loadConfig() {
+    const configPath = `${rootDir}/config.json`;          //rename if you change the name
+    const samplePath = `${rootDir}/config.sample.json`;   //rename if you change the name
+    
+    if (fs.existsSync(configPath)) {
+        return JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    } else {
+        return JSON.parse(fs.readFileSync(samplePath, 'utf8'));
+    }
+}
+const CFG = loadConfig();
+
+// unpack the config values
+const {
+  TZ,
+  CHEAP_CUTOFF_EURKWH,
+  BYD_SOC_MIN_DAY,
+  BYD_SOC_MIN_NIGHT,
+  EV_MIN_SURPLUS_W,
+  BATTERY_PENALTY,
+  SET_PLANS,
+  EV_TARGET_KWH,
+  EV_CHARGE_POWER_KW
+} = CFG;
+
+//const TZ = 'Europe/Berlin';
+//const BYD_SOC_MIN_DAY = 50;
+//const BYD_SOC_MIN_NIGHT = 30;
+//const EV_MIN_SURPLUS_W = 2000;      // 1-phase 3.6kW: 2kW start threshold is sensible
+//const CHEAP_CUTOFF_EURKWH = 0.16;   // €/kWh threshold below which the EV charges at night
+//const BATTERY_PENALTY = 0.05;       // €/kWh estimated roundtrip cost when battery must be used
+//const SET_PLANS = false;            // true => schedules are actually applied (production)
+//const EV_TARGET_KWH = 12;           // target energy for the EV
+//const EV_CHARGE_POWER_KW = 3.6;     // assumed charge power (kW) – adjust to your setup
 
 // ==== STATE PATHS ====
 const ST = {
